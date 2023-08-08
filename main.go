@@ -141,6 +141,7 @@ func parseDNSResponse(response []byte) {
 	nsCount := binary.BigEndian.Uint16(response[8:10])
 	arCount := binary.BigEndian.Uint16(response[10:12])
 
+	fmt.Printf("reponse:%02x\n", response[0:200])
 	fmt.Println("Transaction ID:", transactionID)
 	//fmt.Println("Flags:", flags)
 	parseDNSFlags(flags)
@@ -152,31 +153,18 @@ func parseDNSResponse(response []byte) {
 	// Parse DNS answers, authority records, and additional records
 	offset := 12 // Start after header
 	for idx := uint16(0); idx < qdCount+anCount+nsCount+arCount; idx++ {
-		name, offset := parseName(response, offset)
-		rType := binary.BigEndian.Uint16(response[offset : offset+2])
-		rClass := binary.BigEndian.Uint16(response[offset+2 : offset+4])
-		rTTL := binary.BigEndian.Uint32(response[offset+4 : offset+8])
-		rDLen := binary.BigEndian.Uint16(response[offset+8 : offset+10])
-		rData := response[offset+10 : offset+10+int(rDLen)]
-
 		if idx < qdCount {
 			fmt.Println("----------------Query Section---------------")
+			offset = parseQuerySection(response, offset)
 		} else if idx < qdCount+anCount {
 			fmt.Println("-----------Answer Records Section-----------")
+			offset = parseAnswerSection(response, offset)
 		} else if idx < qdCount+anCount+nsCount {
 			fmt.Println("----------Authority Records Section---------")
 		} else if idx < qdCount+anCount+nsCount+arCount {
 			fmt.Println("----------Additional Records Section--------")
 		}
 
-		fmt.Println("Name:", name)
-		fmt.Println("Type:", rType)
-		fmt.Println("Class:", rClass)
-		fmt.Println("TTL:", rTTL)
-		fmt.Println("Data Length:", rDLen)
-		fmt.Println("Data:", rData)
-
-		offset = offset + 10 + int(rDLen)
 	}
 }
 
@@ -206,6 +194,36 @@ func responseCode(code uint16) string {
 	default:
 		return "Unknown"
 	}
+}
+
+func parseQuerySection(response []byte, offset int) int {
+	name, offset := parseName(response, offset)
+	rType := binary.BigEndian.Uint16(response[offset : offset+2])
+	rClass := binary.BigEndian.Uint16(response[offset+2 : offset+4])
+
+	fmt.Println("Name:", name)
+	fmt.Println("Type:", rType)
+	fmt.Println("Class:", rClass)
+
+	return offset + 4
+}
+
+func parseAnswerSection(response []byte, offset int) int {
+	name, offset := parseName(response, offset)
+	rType := binary.BigEndian.Uint16(response[offset : offset+2])
+	rClass := binary.BigEndian.Uint16(response[offset+2 : offset+4])
+	rTTL := binary.BigEndian.Uint32(response[offset+4 : offset+8])
+	rDLen := binary.BigEndian.Uint16(response[offset+8 : offset+10])
+	rData := response[offset+10 : offset+10+int(rDLen)]
+
+	fmt.Println("Name:", name)
+	fmt.Println("Type:", rType)
+	fmt.Println("Class:", rClass)
+	fmt.Println("TTL:", rTTL)
+	fmt.Println("Data Length:", rDLen)
+	fmt.Println("Data:", rData)
+
+	return offset + 10 + int(rDLen)
 }
 
 func parseName(response []byte, offset int) (string, int) {
