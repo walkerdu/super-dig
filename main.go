@@ -54,9 +54,9 @@ func main() {
 		return
 	}
 
-	nameserver := "8.8.8.8"     // Google's public DNS server
-	nameserver = "119.29.29.29" // Tencent's public DNS server
-	nameserver = "10.123.119.98"
+	nameserver := "8.8.8.8" // Google's public DNS server
+	//nameserver = "119.29.29.29" // Tencent's public DNS server
+	//nameserver = "10.123.119.98"
 
 	// Create UDP connection to DNS server
 	conn, err := net.Dial("udp", nameserver+":53")
@@ -221,7 +221,7 @@ func parseAnswerSection(response []byte, offset int) int {
 	fmt.Println("Class:", rClass)
 	fmt.Println("TTL:", rTTL)
 	fmt.Println("Data Length:", rDLen)
-	fmt.Println("Data:", rData)
+	fmt.Println("Data:", parseIPFromRData(rData))
 
 	return offset + 10 + int(rDLen)
 }
@@ -257,4 +257,10 @@ func parseName(response []byte, offset int) (string, int) {
 	}
 
 	return name, offset
+}
+
+func parseIPFromRData(rdata []byte) net.IP {
+	ip := make(net.IP, len(rdata))
+	copy(ip, rdata)
+	return ip
 }
