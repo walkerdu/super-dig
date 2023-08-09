@@ -121,7 +121,9 @@ func makeDNSQuery(domain string) []byte {
 	//offset = addEDNSClientSubnet(queryData, offset, net.ParseIP("27.128.190.0"), 0)
 
 	// 河北石家庄联通
-	offset = addEDNSClientSubnet(queryData, offset, net.ParseIP("45.119.68.0"), 32)
+	offset = addEDNSClientSubnet(queryData, offset, net.ParseIP("45.119.68.0"), 24)
+	fmt.Printf("request:%02x\n", queryData[0:offset])
+
 	return queryData[0:offset]
 }
 
