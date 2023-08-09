@@ -291,7 +291,7 @@ func addEDNSClientSubnet(query []byte, offset int, clientIP net.IP, sourceNetmas
 	offset += 4
 
 	// Set RR RDLEN = 8 bytes for EDNS Client Subnet option
-	binary.BigEndian.PutUint16(query[offset:], 8)
+	binary.BigEndian.PutUint16(query[offset:], 11)
 	offset += 2
 
 	// Set Option Code = 8 (EDNS Client Subnet)
@@ -299,7 +299,7 @@ func addEDNSClientSubnet(query []byte, offset int, clientIP net.IP, sourceNetmas
 	offset += 2
 
 	// Set Option Length = 8 bytes
-	binary.BigEndian.PutUint16(query[offset:], 8)
+	binary.BigEndian.PutUint16(query[offset:], 7)
 	offset += 2
 
 	// IP Version (1 for IPv4, 2 for IPv6)
@@ -314,7 +314,7 @@ func addEDNSClientSubnet(query []byte, offset int, clientIP net.IP, sourceNetmas
 	query[offset] = 0x00
 	offset++
 
-	clientIP = clientIP.To4()
+	clientIP = clientIP.To4()[0:3]
 	fmt.Println("clientIP length", len(clientIP))
 
 	// Client IP address (4 bytes for IPv4, 16 bytes for IPv6)
