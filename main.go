@@ -121,7 +121,7 @@ func makeDNSQuery(domain string) []byte {
 	//offset = addEDNSClientSubnet(queryData, offset, net.ParseIP("27.128.190.0"), 0)
 
 	// 河北石家庄联通
-	offset = addEDNSClientSubnet(queryData, offset, net.ParseIP("45.119.68.0"), 0)
+	offset = addEDNSClientSubnet(queryData, offset, net.ParseIP("45.119.68.0"), 32)
 	return queryData[0:offset]
 }
 
@@ -296,13 +296,13 @@ func addEDNSClientSubnet(query []byte, offset int, clientIP net.IP, sourceNetmas
 	binary.BigEndian.PutUint16(query[offset:], 8)
 	offset += 2
 
-	// Set Option Length = 4 bytes
-	binary.BigEndian.PutUint16(query[offset:], 4)
+	// Set Option Length = 8 bytes
+	binary.BigEndian.PutUint16(query[offset:], 8)
 	offset += 2
 
 	// IP Version (1 for IPv4, 2 for IPv6)
-	query[offset] = 0x01
-	offset++
+	binary.BigEndian.PutUint16(query[offset:], 1)
+	offset += 2
 
 	// Source Netmask
 	query[offset] = byte(sourceNetmask)
@@ -311,6 +311,9 @@ func addEDNSClientSubnet(query []byte, offset int, clientIP net.IP, sourceNetmas
 	// Scope Netmask (0 for IPv4, 0 for IPv6)
 	query[offset] = 0x00
 	offset++
+
+	clientIP = clientIP.To4()
+	fmt.Println("clientIP length", len(clientIP))
 
 	// Client IP address (4 bytes for IPv4, 16 bytes for IPv6)
 	copy(query[offset:], clientIP)
