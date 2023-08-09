@@ -80,14 +80,14 @@ func main() {
 
 	// Receive DNS response
 	response := make([]byte, 1024*100)
-	_, err = conn.Read(response)
+	resBytes, err := conn.Read(response)
 	if err != nil {
 		log.Println("Error receiving DNS response:", err)
 		return
 	}
 
 	// Process and print DNS response
-	parseDNSResponse(response)
+	parseDNSResponse(response[0:resBytes])
 }
 
 func makeDNSQuery(domain string) []byte {
@@ -149,7 +149,7 @@ func parseDNSResponse(response []byte) {
 	nsCount := binary.BigEndian.Uint16(response[8:10])
 	arCount := binary.BigEndian.Uint16(response[10:12])
 
-	fmt.Printf("reponse:%02x\n", response[0:200])
+	fmt.Printf("reponse:%02x\n", response)
 	fmt.Println("Transaction ID:", transactionID)
 	//fmt.Println("Flags:", flags)
 	parseDNSFlags(flags)
