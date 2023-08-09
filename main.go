@@ -56,7 +56,7 @@ func main() {
 
 	nameserver := "8.8.8.8" // Google's public DNS server
 	//nameserver = "119.29.29.29" // Tencent's public DNS server
-	nameserver = "10.123.119.98"
+	nameserver = "208.67.222.222" // Publish DNS Server
 
 	// Create UDP connection to DNS server
 	conn, err := net.Dial("udp", nameserver+":53")
