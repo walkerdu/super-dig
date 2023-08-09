@@ -56,7 +56,7 @@ func main() {
 
 	nameserver := "8.8.8.8" // Google's public DNS server
 	//nameserver = "119.29.29.29" // Tencent's public DNS server
-	//nameserver = "10.123.119.98"
+	nameserver = "10.123.119.98"
 
 	// Create UDP connection to DNS server
 	conn, err := net.Dial("udp", nameserver+":53")
@@ -97,26 +97,32 @@ func makeDNSQuery(domain string) []byte {
 	qdCount := uint16(1)                  // Number of questions
 	anCount := uint16(0)                  // Number of answers
 	nsCount := uint16(0)                  // Number of authority records
-	arCount := uint16(0)                  // Number of additional records
+	arCount := uint16(1)                  // Number of additional records
 
 	// Construct DNS query packet using domain name
 	queryName := appendDomainName(domain)
-	queryType := uint16(1)                         // A record type
-	queryClass := uint16(1)                        // Internet class
-	queryData := make([]byte, 12+len(queryName)+4) // 12 for header, 4 for type and class
+
+	queryData := make([]byte, 12+len(queryName)+4+1024) // 12 for header, 4 for type and class
 	binary.BigEndian.PutUint16(queryData[0:], queryID)
 	binary.BigEndian.PutUint16(queryData[2:], flags)
 	binary.BigEndian.PutUint16(queryData[4:], qdCount)
 	binary.BigEndian.PutUint16(queryData[6:], anCount)
 	binary.BigEndian.PutUint16(queryData[8:], nsCount)
 	binary.BigEndian.PutUint16(queryData[10:], arCount)
+
+	queryType := uint16(1)  // A record type
+	queryClass := uint16(1) // Internet class
 	copy(queryData[12:], queryName)
 	binary.BigEndian.PutUint16(queryData[12+len(queryName):], queryType)
 	binary.BigEndian.PutUint16(queryData[12+len(queryName)+2:], queryClass)
 
-	fmt.Println("Transaction ID:", queryID)
+	offset := 12 + len(queryName) + 4
+	// 河北石家庄电信
+	//offset = addEDNSClientSubnet(queryData, offset, net.ParseIP("27.128.190.0"), 0)
 
-	return queryData
+	// 河北石家庄联通
+	offset = addEDNSClientSubnet(queryData, offset, net.ParseIP("45.119.68.0"), 0)
+	return queryData[0:offset]
 }
 
 func appendDomainName(domain string) []byte {
@@ -263,4 +269,52 @@ func parseIPFromRData(rdata []byte) net.IP {
 	ip := make(net.IP, len(rdata))
 	copy(ip, rdata)
 	return ip
+}
+
+func addEDNSClientSubnet(query []byte, offset int, clientIP net.IP, sourceNetmask int) int {
+	// Set RR NAME (empty, as it's not required for EDNS options)
+	query[offset] = 0x00
+	offset++
+
+	// Set RR Type = 41 (OPT)
+	binary.BigEndian.PutUint16(query[offset:], 41)
+	offset += 2
+
+	// Set RR Class = 4096 (UDP Payload Size)
+	binary.BigEndian.PutUint16(query[offset:], 4096)
+	offset += 2
+
+	// Set RR TTL = 0
+	binary.BigEndian.PutUint32(query[offset:], 0)
+	offset += 4
+
+	// Set RR RDLEN = 8 bytes for EDNS Client Subnet option
+	binary.BigEndian.PutUint16(query[offset:], 8)
+	offset += 2
+
+	// Set Option Code = 8 (EDNS Client Subnet)
+	binary.BigEndian.PutUint16(query[offset:], 8)
+	offset += 2
+
+	// Set Option Length = 4 bytes
+	binary.BigEndian.PutUint16(query[offset:], 4)
+	offset += 2
+
+	// IP Version (1 for IPv4, 2 for IPv6)
+	query[offset] = 0x01
+	offset++
+
+	// Source Netmask
+	query[offset] = byte(sourceNetmask)
+	offset++
+
+	// Scope Netmask (0 for IPv4, 0 for IPv6)
+	query[offset] = 0x00
+	offset++
+
+	// Client IP address (4 bytes for IPv4, 16 bytes for IPv6)
+	copy(query[offset:], clientIP)
+	offset += len(clientIP)
+
+	return offset
 }
