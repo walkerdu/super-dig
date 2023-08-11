@@ -9,7 +9,7 @@ import (
 	"os"
 	"time"
 
-	dnsMsg "github.com/super-dig/pkg/dns_msg"
+	dnsMsg "github.com/walkerdu/super-dig/pkg/dns_msg"
 )
 
 var (
@@ -104,7 +104,7 @@ func makeDNSQuery(domain string) []byte {
 	dnsQuestion.AddQuestion(domain, 1, 1)
 
 	dnsAdditional := dnsMsg.Additional{
-		buffer: make([]byte, 1024),
+		Data: make([]byte, 1024),
 	}
 
 	// 河北石家庄电信
@@ -113,8 +113,8 @@ func makeDNSQuery(domain string) []byte {
 	// 河北石家庄联通
 	offset := dnsAdditional.AddEDNSClientSubnet(0, net.ParseIP("45.119.68.0"), 24)
 
-	queryData := append(dnsHeader.GetHeader(), dnsQuestion.buffer)
-	queryData = append(queryData, dnsAdditional.buffer[0:offset])
+	queryData := append(dnsHeader.GetHeader(), dnsQuestion.Data...)
+	queryData = append(queryData, dnsAdditional.Data[0:offset]...)
 
 	return queryData
 }
@@ -151,7 +151,7 @@ func parseDNSResponse(response []byte) {
 
 func parseQuerySection(response []byte, offset int) int {
 	dnsQuestion := dnsMsg.Question{
-		buffer: response,
+		Data: response,
 	}
 
 	name, length := dnsQuestion.GetQName(offset)
@@ -172,7 +172,7 @@ func parseQuerySection(response []byte, offset int) int {
 
 func parseAnswerSection(response []byte, offset int) int {
 	dnsAnswer := dnsMsg.Answer{
-		buffer: response,
+		Data: response,
 	}
 
 	name, length := dnsAnswer.GetName(offset)
@@ -197,7 +197,7 @@ func parseAnswerSection(response []byte, offset int) int {
 	fmt.Println("Class:", rClass)
 	fmt.Println("TTL:", rTTL)
 	fmt.Println("Data Length:", rDLen)
-	fmt.Println("Data:", dnsMsg.parseIPFromRData(rData))
+	fmt.Println("Data:", dnsMsg.ParseIPFromRData(rData))
 
 	return offset + int(rDLen)
 }

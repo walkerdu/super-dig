@@ -46,81 +46,81 @@ import (
 */
 
 type Additional struct {
-	buffer []byte
+	Data []byte
 }
 
 func (additional *Additional) SetName(offset int) (length int) {
-	additional.buffer[offset] = 0
+	additional.Data[offset] = 0
 	return 1
 }
 
 func (additional *Additional) SetType(offset int, rType uint16) (length int) {
-	binary.BigEndian.PutUint16(additional.buffer[offset:], rType)
+	binary.BigEndian.PutUint16(additional.Data[offset:], rType)
 	return 2
 }
 
 func (additional *Additional) GetType(offset int) (rType uint16, length int) {
-	return binary.BigEndian.Uint16(additional.buffer[offset : offset+2]), 2
+	return binary.BigEndian.Uint16(additional.Data[offset : offset+2]), 2
 }
 
 func (additional *Additional) SetClass(offset int, rClass uint16) (length int) {
-	binary.BigEndian.PutUint16(additional.buffer[offset:], rClass)
+	binary.BigEndian.PutUint16(additional.Data[offset:], rClass)
 	return 2
 }
 
 func (additional *Additional) GetClass(offset int) (rClass uint16, length int) {
-	return binary.BigEndian.Uint16(additional.buffer[offset : offset+2]), 2
+	return binary.BigEndian.Uint16(additional.Data[offset : offset+2]), 2
 }
 
 func (additional *Additional) SetTTL(offset int, rTTL uint32) (length int) {
-	binary.BigEndian.PutUint32(additional.buffer[offset:], rTTL)
+	binary.BigEndian.PutUint32(additional.Data[offset:], rTTL)
 	return 4
 }
 
 func (additional *Additional) GetTTL(offset int) (rTTL uint32, length int) {
-	return binary.BigEndian.Uint32(additional.buffer[offset : offset+4]), 4
+	return binary.BigEndian.Uint32(additional.Data[offset : offset+4]), 4
 }
 
 func (additional *Additional) SetDLen(offset int, rDLen uint16) (length int) {
-	binary.BigEndian.PutUint16(additional.buffer[offset:], rDLen)
+	binary.BigEndian.PutUint16(additional.Data[offset:], rDLen)
 	return 2
 }
 
 func (additional *Additional) GetDLen(offset int) (rDLen uint16, length int) {
-	return binary.BigEndian.Uint16(additional.buffer[offset : offset+2]), 2
+	return binary.BigEndian.Uint16(additional.Data[offset : offset+2]), 2
 }
 
 func (additional *Additional) GetData(offset int, rDLen uint16) []byte {
-	return additional.buffer[offset : offset+int(rDLen)]
+	return additional.Data[offset : offset+int(rDLen)]
 }
 
 func (additional *Additional) SetOptCode(offset int, optCode uint16) (length int) {
-	binary.BigEndian.PutUint16(additional.buffer[offset:], optCode)
+	binary.BigEndian.PutUint16(additional.Data[offset:], optCode)
 	return 2
 }
 
 func (additional *Additional) SetOptDLen(offset int, optDLen uint16) (length int) {
-	binary.BigEndian.PutUint16(additional.buffer[offset:], optDLen)
+	binary.BigEndian.PutUint16(additional.Data[offset:], optDLen)
 	return 2
 }
 
 func (additional *Additional) SetClientSubnetOptFamily(offset int, family uint16) (length int) {
-	binary.BigEndian.PutUint16(additional.buffer[offset:], family)
+	binary.BigEndian.PutUint16(additional.Data[offset:], family)
 	return 2
 }
 
 func (additional *Additional) SetClientSubnetOptSourceNetMask(offset int, mask uint8) (length int) {
-	additional.buffer[offset] = mask
+	additional.Data[offset] = mask
 	return 1
 }
 
 func (additional *Additional) SetClientSubnetOptScopeNetMask(offset int, mask uint8) (length int) {
-	additional.buffer[offset] = mask
+	additional.Data[offset] = mask
 	return 1
 }
 
 func (additional *Additional) SetClientSubnetOptAddress(offset int, address []byte) (length int) {
-	copy(additional.buffer[offset:], address)
+	copy(additional.Data[offset:], address)
 	return len(address)
 }
 

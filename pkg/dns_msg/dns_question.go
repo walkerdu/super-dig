@@ -22,30 +22,30 @@ import (
 */
 
 type Question struct {
-	buffer []byte
+	Data []byte
 }
 
 func (question *Question) AddQuestion(qName string, qType, qClass uint16) {
 	labels := strings.Split(qName, ".")
 	for _, label := range labels {
-		question.buffer = append(question.buffer, byte(len(label))) // 添加标签长度
-		question.buffer = append(question.buffer, []byte(label)...) // 添加标签内容
+		question.Data = append(question.Data, byte(len(label))) // 添加标签长度
+		question.Data = append(question.Data, []byte(label)...) // 添加标签内容
 	}
 
-	question.buffer = append(question.buffer, 0) // 结束标志
+	question.Data = append(question.Data, 0) // 结束标志
 
-	offset := len(question.buffer)
-	question.buffer = append(question.buffer, []byte{0, 0, 0, 0}...)
+	offset := len(question.Data)
+	question.Data = append(question.Data, []byte{0, 0, 0, 0}...)
 
-	binary.BigEndian.PutUint16(question.buffer[offset:], qType)
-	binary.BigEndian.PutUint16(question.buffer[offset+2:], qClass)
+	binary.BigEndian.PutUint16(question.Data[offset:], qType)
+	binary.BigEndian.PutUint16(question.Data[offset+2:], qClass)
 }
 
 func (question *Question) GetQName(offset int) (name string, length int) {
 	begin_offset := offset
 
 	for {
-		labelLen := int(question.buffer[offset])
+		labelLen := int(question.Data[offset])
 		offset++
 
 		if labelLen == 0 {
@@ -54,14 +54,14 @@ func (question *Question) GetQName(offset int) (name string, length int) {
 
 		if labelLen&0xC0 == 0xC0 {
 			// 如果是指针，则跳转到指针指向的位置继续解析
-			pointerOffset := int(binary.BigEndian.Uint16([]byte{0, question.buffer[offset] & 0x3F}))
+			pointerOffset := int(binary.BigEndian.Uint16([]byte{0, question.Data[offset] & 0x3F}))
 			namePart, _ := question.GetQName(pointerOffset)
 			name += namePart
 			offset++
 			break
 		}
 
-		label := string(question.buffer[offset : offset+labelLen])
+		label := string(question.Data[offset : offset+labelLen])
 		name += label + "."
 		offset += labelLen
 	}
@@ -75,9 +75,9 @@ func (question *Question) GetQName(offset int) (name string, length int) {
 }
 
 func (question *Question) GetQType(offset int) (qType uint16, length int) {
-	return binary.BigEndian.Uint16(question.buffer[offset : offset+2]), 2
+	return binary.BigEndian.Uint16(question.Data[offset : offset+2]), 2
 }
 
 func (question *Question) GetQClass(offset int) (qClass uint16, length int) {
-	return binary.BigEndian.Uint16(question.buffer[offset : offset+2]), 2
+	return binary.BigEndian.Uint16(question.Data[offset : offset+2]), 2
 }

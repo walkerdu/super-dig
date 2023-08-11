@@ -31,14 +31,14 @@ import (
 */
 
 type Answer struct {
-	buffer []byte
+	Data []byte
 }
 
 func (answer *Answer) GetName(offset int) (name string, length int) {
 	begin_offset := offset
 
 	for {
-		labelLen := int(answer.buffer[offset])
+		labelLen := int(answer.Data[offset])
 		offset++
 
 		if labelLen == 0 {
@@ -47,14 +47,14 @@ func (answer *Answer) GetName(offset int) (name string, length int) {
 
 		if labelLen&0xC0 == 0xC0 {
 			// 如果是指针，则跳转到指针指向的位置继续解析
-			pointerOffset := int(binary.BigEndian.Uint16([]byte{0, answer.buffer[offset] & 0x3F}))
+			pointerOffset := int(binary.BigEndian.Uint16([]byte{0, answer.Data[offset] & 0x3F}))
 			namePart, _ := answer.GetName(pointerOffset)
 			name += namePart
 			offset++
 			break
 		}
 
-		label := string(answer.buffer[offset : offset+labelLen])
+		label := string(answer.Data[offset : offset+labelLen])
 		name += label + "."
 		offset += labelLen
 	}
@@ -68,26 +68,26 @@ func (answer *Answer) GetName(offset int) (name string, length int) {
 }
 
 func (answer *Answer) GetType(offset int) (rType uint16, length int) {
-	return binary.BigEndian.Uint16(answer.buffer[offset : offset+2]), 2
+	return binary.BigEndian.Uint16(answer.Data[offset : offset+2]), 2
 }
 
 func (answer *Answer) GetClass(offset int) (rClass uint16, length int) {
-	return binary.BigEndian.Uint16(answer.buffer[offset : offset+2]), 2
+	return binary.BigEndian.Uint16(answer.Data[offset : offset+2]), 2
 }
 
 func (answer *Answer) GetTTL(offset int) (rTTL uint32, length int) {
-	return binary.BigEndian.Uint32(answer.buffer[offset : offset+4]), 4
+	return binary.BigEndian.Uint32(answer.Data[offset : offset+4]), 4
 }
 
 func (answer *Answer) GetDLen(offset int) (rDLen uint16, length int) {
-	return binary.BigEndian.Uint16(answer.buffer[offset : offset+2]), 2
+	return binary.BigEndian.Uint16(answer.Data[offset : offset+2]), 2
 }
 
 func (answer *Answer) GetData(offset int, rDLen uint16) []byte {
-	return answer.buffer[offset : offset+int(rDLen)]
+	return answer.Data[offset : offset+int(rDLen)]
 }
 
-func parseIPFromRData(rdata []byte) net.IP {
+func ParseIPFromRData(rdata []byte) net.IP {
 	ip := make(net.IP, len(rdata))
 	copy(ip, rdata)
 	return ip
