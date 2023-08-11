@@ -1,4 +1,4 @@
-PROTO_PATHS = $(shell find pkg/ internal/ -name '*.proto' | xargs -I {} dirname {} | uniq)
+PROTO_PATHS = $(shell find pkg/ -name '*.proto' | xargs -I {} dirname {} | uniq)
 
 CMD_TARGETS = $(notdir $(shell find cmd/* -maxdepth 0 -type d))
 

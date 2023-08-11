@@ -1,14 +1,17 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"net"
 	"os"
 	"time"
 
+	"github.com/walkerdu/super-dig/configs"
 	dnsMsg "github.com/walkerdu/super-dig/pkg/dns_msg"
 )
 
@@ -16,6 +19,8 @@ var (
 	usage = `Usage: %s [options] Domain-Name
 Options:
 	-t, --type <A, NS, CNAME, ANY type Resource Records>
+	-f, --ip_region_file <ip region file, for DNS client subnet>
+	-ns <name server>
 `
 	Usage = func() {
 		fmt.Printf(usage, os.Args[0])
@@ -23,8 +28,10 @@ Options:
 )
 
 var (
-	rrType     = flag.String("t", "A", "request RR type")
-	domainName = ""
+	rrType       = flag.String("t", "A", "request RR type")
+	nameServer   = flag.String("ns", "8.8.8.8", "name server")
+	ipRegionFile = flag.String("f", "", "ip region file")
+	domainName   = ""
 )
 
 func main() {
@@ -54,12 +61,16 @@ func main() {
 		return
 	}
 
-	nameserver := "8.8.8.8" // Google's public DNS server
-	//nameserver = "119.29.29.29" // Tencent's public DNS server
-	nameserver = "208.67.222.222" // Publish DNS Server
+	var ipRegions []configs.IPRegion
+	if *ipRegionFile != "" {
+		ipRegions = parseIPRegionFile(*ipRegionFile)
+	}
+
+	//nameserver := "8.8.8.8" // Google's public DNS server
+	//nameserver = "208.67.222.222" // OpenDNS Server
 
 	// Create UDP connection to DNS server
-	conn, err := net.Dial("udp", nameserver+":53")
+	conn, err := net.Dial("udp", *nameServer+":53")
 	if err != nil {
 		log.Println("Error creating UDP connection:", err)
 		return
@@ -67,30 +78,59 @@ func main() {
 	defer conn.Close()
 
 	conn.SetDeadline(time.Now().Add(time.Second * 10))
-
-	// Construct DNS query
-	query := makeDNSQuery(domainName)
-
-	// Send DNS query
-	_, err = conn.Write(query)
-	if err != nil {
-		log.Println("Error sending DNS query:", err)
-		return
+	if len(ipRegions) == 0 {
+		ipRegions = append(ipRegions, configs.IPRegion{
+			IPs: []string{""},
+		})
 	}
 
-	// Receive DNS response
-	response := make([]byte, 1024*100)
-	resBytes, err := conn.Read(response)
-	if err != nil {
-		log.Println("Error receiving DNS response:", err)
-		return
-	}
+	for _, ipRegion := range ipRegions {
+		for _, ip := range ipRegion.IPs {
+			// Construct DNS query
+			query := makeDNSQuery(domainName, ip)
 
-	// Process and print DNS response
-	parseDNSResponse(response[0:resBytes])
+			// Send DNS query
+			_, err = conn.Write(query)
+			if err != nil {
+				log.Println("Error sending DNS query:", err)
+				return
+			}
+
+			// Receive DNS response
+			response := make([]byte, 1024*100)
+			resBytes, err := conn.Read(response)
+			if err != nil {
+				log.Println("Error receiving DNS response:", err)
+				return
+			}
+
+			// Process and print DNS response
+			parseDNSResponse(response[0:resBytes])
+		}
+	}
 }
 
-func makeDNSQuery(domain string) []byte {
+func parseIPRegionFile(ipRegionFile string) []configs.IPRegion {
+	jsonFile, err := os.Open(ipRegionFile)
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
+	defer jsonFile.Close()
+
+	byteValue, _ := ioutil.ReadAll(jsonFile)
+
+	var ipRegions []configs.IPRegion
+	err = json.Unmarshal(byteValue, &ipRegions)
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
+
+	return ipRegions
+}
+
+func makeDNSQuery(domain string, clientSubnet string) []byte {
 	var dnsHeader dnsMsg.DNSHeader
 
 	// DNS query header
@@ -98,21 +138,24 @@ func makeDNSQuery(domain string) []byte {
 	dnsHeader.SetQR(0)                          // Standard query
 	dnsHeader.SetRD(1)                          // Recusive Desired
 	dnsHeader.SetQDCount(1)                     // Number of questions
-	dnsHeader.SetARCount(1)                     // Number of additional records
 
 	// Construct DNS query packet using domain name
 	var dnsQuestion dnsMsg.Question
 	dnsQuestion.AddQuestion(domain, 1, 1)
 
-	dnsAdditional := dnsMsg.Additional{
-		Data: make([]byte, 1024),
-	}
-
-	// 河北石家庄联通
-	offset := dnsAdditional.AddEDNSClientSubnet(0, net.ParseIP("45.119.68.0"), 24)
-
 	queryData := append(dnsHeader.GetHeader(), dnsQuestion.Data...)
-	queryData = append(queryData, dnsAdditional.Data[0:offset]...)
+
+	if clientSubnet != "" {
+		dnsAdditional := dnsMsg.Additional{
+			Data: make([]byte, 1024),
+		}
+
+		dnsHeader.SetARCount(1) // Number of additional records
+
+		queryData = append(dnsHeader.GetHeader(), dnsQuestion.Data...)
+		offset := dnsAdditional.AddEDNSClientSubnet(0, net.ParseIP(clientSubnet), 24)
+		queryData = append(queryData, dnsAdditional.Data[0:offset]...)
+	}
 
 	fmt.Printf("Request:%02x\n", queryData)
 	fmt.Println("Request Header\n", &dnsHeader)
@@ -146,7 +189,6 @@ func parseDNSResponse(response []byte) {
 		} else if idx < qdCount+anCount+nsCount+arCount {
 			fmt.Println("----------Additional Records Section--------")
 		}
-
 	}
 }
 

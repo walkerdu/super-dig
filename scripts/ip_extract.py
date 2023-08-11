@@ -1,6 +1,10 @@
+#/usr/bin/python3
+
+import json
+
 ip_dict = {}
 illegal_lines = 0
-with open("ip.txt") as ip_obj:
+with open("../data/ip.txt") as ip_obj:
     for line in ip_obj:
         line_list = line.strip().split('|')
         if len(line_list) != 7:
@@ -24,7 +28,7 @@ with open("ip.txt") as ip_obj:
             ip_dict[country][province][isp].append(ip_start)
 
 
-with open("ip_country_1.txt", 'w') as file_obj:
+with open("../data/ip_country_1.txt", 'w') as file_obj:
     for country, val1 in ip_dict.items():
         for province, val2 in val1.items():
             for isp, val3 in val2.items():
@@ -62,8 +66,20 @@ for country, val1 in ip_dict.items():
             elif len(new_dict[country][province][isp]) < 2:
                 new_dict[country][province][isp] += val3
 
-with open("ip_country_2.txt", 'w') as file_obj:
+json_data = []
+
+with open("../data/ip_country_2.txt", 'w') as file_obj:
     for country, val1 in new_dict.items():
         for province, val2 in val1.items():
             for isp, val3 in val2.items():
                 file_obj.write(' '.join([country, province, isp]) + ' ' + ' '.join(val3) + '\n')
+                json_data.append({
+                    "country": country,
+                    "province": province,
+                    "isp": isp,
+                    "ips": val3 
+                    })
+with open("../data/ip_country_3.json", 'w') as json_file:
+    json.dump(json_data, json_file, ensure_ascii=False, indent=4)
+
+
