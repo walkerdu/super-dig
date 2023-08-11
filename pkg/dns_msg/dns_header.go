@@ -90,7 +90,7 @@ func (header *DNSHeader) GetRCode() uint8 {
 }
 
 func (header *DNSHeader) GetZ() uint8 {
-	return (header[3] >> 4) & 0x08
+	return (header[3] >> 4) & 0x07
 }
 
 func (header *DNSHeader) SetQDCount(value uint16) {
