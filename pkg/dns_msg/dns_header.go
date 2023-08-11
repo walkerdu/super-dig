@@ -121,13 +121,14 @@ func (header *DNSHeader) GetHeader() []byte {
 	return header[0:]
 }
 
-func (header *DNSHeader) String() {
-	fmt.Printf("ID=%v, QR=%v, Opcode=%v, AA=%v, TC=%v, RD=%v, RA=%v, Z=%v, RCODE=%v\n",
+func (header *DNSHeader) String() string {
+	str := fmt.Sprintf("ID=%v, QR=%v, Opcode=%v, AA=%v, TC=%v, RD=%v, RA=%v, Z=%v, RCODE=%v\n",
 		header.GetID(),
 		header.GetQR(), header.GetOpCode(), header.GetAA(), header.GetTC(), header.GetRD(), header.GetRA(),
 		header.GetZ(), header.GetRCode())
-	fmt.Printf("QDCOUNT=%v, ANCOUNT=%v, NSCOUNT=%v, ARCOUNT=%v\n",
+	str += fmt.Sprintf("QDCOUNT=%v, ANCOUNT=%v, NSCOUNT=%v, ARCOUNT=%v\n",
 		header.GetQDCount(), header.GetANCount(), header.GetNSCount(), header.GetARCount())
+	return str
 }
 
 func responseCode(code uint16) string {

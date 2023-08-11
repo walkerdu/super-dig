@@ -95,7 +95,7 @@ func makeDNSQuery(domain string) []byte {
 
 	// DNS query header
 	dnsHeader.SetID(uint16(rand.Int31n(65535))) // Use your own query ID
-	dnsHeader.SetQR(1)                          // Standard query
+	dnsHeader.SetQR(0)                          // Standard query
 	dnsHeader.SetQDCount(1)                     // Number of questions
 	dnsHeader.SetARCount(1)                     // Number of additional records
 
@@ -115,6 +115,8 @@ func makeDNSQuery(domain string) []byte {
 
 	queryData := append(dnsHeader.GetHeader(), dnsQuestion.Data...)
 	queryData = append(queryData, dnsAdditional.Data[0:offset]...)
+
+	fmt.Println("Request Header\n", &dnsHeader)
 
 	return queryData
 }
