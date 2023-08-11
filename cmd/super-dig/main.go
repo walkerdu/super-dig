@@ -108,9 +108,6 @@ func makeDNSQuery(domain string) []byte {
 		Data: make([]byte, 1024),
 	}
 
-	// 河北石家庄电信
-	//offset = addEDNSClientSubnet(queryData, offset, net.ParseIP("27.128.190.0"), 0)
-
 	// 河北石家庄联通
 	offset := dnsAdditional.AddEDNSClientSubnet(0, net.ParseIP("45.119.68.0"), 24)
 
