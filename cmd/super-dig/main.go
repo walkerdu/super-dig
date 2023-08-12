@@ -19,8 +19,9 @@ var (
 	usage = `Usage: %s [options] Domain-Name
 Options:
 	-t, --type <A, NS, CNAME, ANY type Resource Records>
-	-f, --ip_region_file <ip region file, for DNS client subnet>
+	-f, --subnet_file <ip region file, for DNS client subnet>
 	-ns <name server>
+	--ns_file <name server file>
 `
 	Usage = func() {
 		fmt.Printf(usage, os.Args[0])
@@ -28,10 +29,11 @@ Options:
 )
 
 var (
-	rrType       = flag.String("t", "A", "request RR type")
-	nameServer   = flag.String("ns", "8.8.8.8", "name server")
-	ipRegionFile = flag.String("f", "", "ip region file")
-	domainName   = ""
+	rrType         = flag.String("t", "A", "request RR type")
+	nameServer     = flag.String("ns", "8.8.8.8", "name server")
+	ipRegionFile   = flag.String("f", "", "ip region file")
+	nameServerFile = flag.String("ns_file", "", "name server")
+	domainName     = ""
 )
 
 func main() {

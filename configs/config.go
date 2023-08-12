@@ -6,3 +6,8 @@ type IPRegion struct {
 	ISP      string   `json:"isp"`
 	IPs      []string `json:"ips"`
 }
+
+type DNS struct {
+	Nameserver string `json:"nameserver"`
+	Desc       string `json:"desc"`
+}
