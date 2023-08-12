@@ -263,7 +263,7 @@ func parseDNSResponse(response []byte) []string {
 			var rData []byte
 			rType, rData, offset = parseAnswerSection(response, offset)
 			if rType == 1 {
-				aRRs = append(aRRs, string(dnsMsg.ParseIPFromRData(rData)))
+				aRRs = append(aRRs, dnsMsg.ParseIPFromRData(rData).String())
 			}
 		} else if idx < qdCount+anCount+nsCount {
 			fmt.Println("----------Authority Records Section---------")
