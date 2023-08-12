@@ -9,6 +9,8 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/walkerdu/super-dig/configs"
@@ -90,6 +92,7 @@ func main() {
 	idx := 0
 	nsIdx := 0
 	var conn net.Conn
+	rr2RegionMap := make(map[string]map[string]map[string]string)
 	for _, ipRegion := range ipRegions {
 		for _, ip := range ipRegion.IPs {
 			// 每100个请求切换一下nameserver
@@ -135,12 +138,30 @@ func main() {
 			}
 
 			// Process and print DNS response
-			parseDNSResponse(response[0:resBytes])
+			aRRs := parseDNSResponse(response[0:resBytes])
+
+			// 汇总结果
+			sort.Strings(aRRs)
+			aStr := strings.Join(aRRs, ",")
+			if regionInfo, ok := rr2RegionMap[aStr]; !ok {
+				rr2RegionMap[aStr] = make(map[string]map[string]string)
+				rr2RegionMap[aStr][ipRegion.Country] = make(map[string]string)
+				rr2RegionMap[aStr][ipRegion.Country][ipRegion.Province] = ipRegion.ISP
+			} else {
+				if _, ok := regionInfo[ipRegion.Country]; !ok {
+					regionInfo[ipRegion.Country] = make(map[string]string)
+					regionInfo[ipRegion.Country][ipRegion.Province] = ipRegion.ISP
+				} else {
+					regionInfo[ipRegion.Country][ipRegion.Province] = ipRegion.ISP
+				}
+			}
 
 			// 控制频率
 			time.Sleep(5 * time.Millisecond)
 		}
 	}
+
+	fmt.Printf("%v\n", rr2RegionMap)
 }
 
 func parseNameServerFile(nsFile string) []configs.DNS {
@@ -216,7 +237,7 @@ func makeDNSQuery(domain string, clientSubnet string) []byte {
 	return queryData
 }
 
-func parseDNSResponse(response []byte) {
+func parseDNSResponse(response []byte) []string {
 	fmt.Printf("Reponse:%02x\n", response)
 
 	// DNS response header
@@ -228,6 +249,8 @@ func parseDNSResponse(response []byte) {
 	nsCount := dnsHeader.GetNSCount()
 	arCount := dnsHeader.GetARCount()
 
+	var aRRs []string
+
 	// Parse DNS answers, authority records, and additional records
 	offset := len(dnsHeader) // Start after header
 	for idx := uint16(0); idx < qdCount+anCount+nsCount+arCount; idx++ {
@@ -236,13 +259,20 @@ func parseDNSResponse(response []byte) {
 			offset = parseQuerySection(response, offset)
 		} else if idx < qdCount+anCount {
 			fmt.Println("-----------Answer Records Section-----------")
-			offset = parseAnswerSection(response, offset)
+			var rType uint16
+			var rData []byte
+			rType, rData, offset = parseAnswerSection(response, offset)
+			if rType == 1 {
+				aRRs = append(aRRs, string(dnsMsg.ParseIPFromRData(rData)))
+			}
 		} else if idx < qdCount+anCount+nsCount {
 			fmt.Println("----------Authority Records Section---------")
 		} else if idx < qdCount+anCount+nsCount+arCount {
 			fmt.Println("----------Additional Records Section--------")
 		}
 	}
+
+	return aRRs
 }
 
 func parseQuerySection(response []byte, offset int) int {
@@ -266,7 +296,7 @@ func parseQuerySection(response []byte, offset int) int {
 	return offset
 }
 
-func parseAnswerSection(response []byte, offset int) int {
+func parseAnswerSection(response []byte, offset int) (uint16, []byte, int) {
 	dnsAnswer := dnsMsg.Answer{
 		Data: response,
 	}
@@ -295,5 +325,5 @@ func parseAnswerSection(response []byte, offset int) int {
 	fmt.Println("Data Length:", rDLen)
 	fmt.Println("Data:", dnsMsg.ParseIPFromRData(rData))
 
-	return offset + int(rDLen)
+	return rType, rData, offset + int(rDLen)
 }
