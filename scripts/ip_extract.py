@@ -36,6 +36,9 @@ with open("../data/ip_country_1.txt", 'w') as file_obj:
 
 new_dict = {}
 for country, val1 in ip_dict.items():
+    if country == "0":
+        continue
+
     china = False 
     if '中国' in country:
         china = True
@@ -62,8 +65,13 @@ for country, val1 in ip_dict.items():
                     continue
 
             if not isp in new_dict[country][province]:
-                new_dict[country][province][isp] = val3
-            elif len(new_dict[country][province][isp]) < 2:
+                # 太多了，国内到省级的三个运营商只取1个subnet，国外每个国家只取两个
+                if china:
+                    new_dict[country][province][isp] = val3[0:1]
+                else:
+                    new_dict[country][province][isp] = val3
+
+            elif not china and len(new_dict[country][province][isp]) < 2:
                 new_dict[country][province][isp] += val3
 
 json_data = []
