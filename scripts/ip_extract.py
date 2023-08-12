@@ -64,15 +64,11 @@ for country, val1 in ip_dict.items():
                 if not ('电信' == isp or '移动' == isp or '联通' == isp):
                     continue
 
+            # 太多了，国内到省级的三个运营商只取1个subnet，国外每个国家只取1个
             if not isp in new_dict[country][province]:
-                # 太多了，国内到省级的三个运营商只取1个subnet，国外每个国家只取两个
-                if china:
-                    new_dict[country][province][isp] = val3[0:1]
-                else:
-                    new_dict[country][province][isp] = val3
-
-            elif not china and len(new_dict[country][province][isp]) < 2:
-                new_dict[country][province][isp] += val3
+                new_dict[country][province][isp] = val3[0:1]
+            #elif not china and len(new_dict[country][province][isp]) < 2:
+            #    new_dict[country][province][isp] += val3
 
 json_data = []
 

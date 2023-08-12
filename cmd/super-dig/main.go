@@ -68,19 +68,6 @@ func main() {
 		ipRegions = parseIPRegionFile(*ipRegionFile)
 	}
 
-	//nameserver := "8.8.8.8" // Google's public DNS server
-	//nameserver = "208.67.222.222" // OpenDNS Server
-
-	// Create UDP connection to DNS server
-	conn, err := net.Dial("udp", *nameServer+":53")
-	if err != nil {
-		log.Println("Error creating UDP connection:", err)
-		return
-	}
-	defer conn.Close()
-
-	conn.SetDeadline(time.Now().Add(time.Second * 10))
-
 	// 如果没有subnet文件，默认只看本机dig的结果
 	if len(ipRegions) == 0 {
 		ipRegions = append(ipRegions, configs.IPRegion{
@@ -88,13 +75,52 @@ func main() {
 		})
 	}
 
+	var nsList []configs.DNS
+	if *nameServerFile != "" {
+		nsList = parseNameServerFile(*nameServerFile)
+	}
+
+	// 没有指定用默认的nameserver
+	if len(nsList) == 0 {
+		nsList = append(nsList, configs.DNS{
+			Nameserver: *nameServer,
+		})
+	}
+
+	idx := 0
+	nsIdx := 0
+	var conn net.Conn
 	for _, ipRegion := range ipRegions {
 		for _, ip := range ipRegion.IPs {
+			// 每100个请求切换一下nameserver
+			if idx%100 == 0 {
+				// 释放上一个conn
+				if conn != nil {
+					conn.Close()
+				}
+
+				ns := nsList[nsIdx%len(nsList)]
+				nsIdx += 1
+
+				// Create UDP connection to DNS server
+				var err error
+				conn, err = net.Dial("udp", ns.Nameserver+":53")
+				if err != nil {
+					log.Println("Error creating UDP connection:", err)
+					return
+				}
+
+				log.Printf("switch to DNS %s:53\n", ns.Nameserver)
+				conn.SetDeadline(time.Now().Add(time.Second * 10))
+			}
+
+			idx += 1
+
 			// Construct DNS query
 			query := makeDNSQuery(domainName, ip)
 
 			// Send DNS query
-			_, err = conn.Write(query)
+			_, err := conn.Write(query)
 			if err != nil {
 				log.Println("Error sending DNS query:", err)
 				return
@@ -115,6 +141,26 @@ func main() {
 			time.Sleep(5 * time.Millisecond)
 		}
 	}
+}
+
+func parseNameServerFile(nsFile string) []configs.DNS {
+	jsonFile, err := os.Open(nsFile)
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
+	defer jsonFile.Close()
+
+	byteValue, _ := ioutil.ReadAll(jsonFile)
+
+	var nsList []configs.DNS
+	err = json.Unmarshal(byteValue, &nsList)
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
+
+	return nsList
 }
 
 func parseIPRegionFile(ipRegionFile string) []configs.IPRegion {
