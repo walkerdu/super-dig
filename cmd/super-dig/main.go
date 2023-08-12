@@ -78,6 +78,8 @@ func main() {
 	defer conn.Close()
 
 	conn.SetDeadline(time.Now().Add(time.Second * 10))
+
+	// 如果没有subnet文件，默认只看本机dig的结果
 	if len(ipRegions) == 0 {
 		ipRegions = append(ipRegions, configs.IPRegion{
 			IPs: []string{""},
@@ -106,6 +108,9 @@ func main() {
 
 			// Process and print DNS response
 			parseDNSResponse(response[0:resBytes])
+
+			// 控制频率
+			time.Sleep(5 * time.Millisecond)
 		}
 	}
 }
