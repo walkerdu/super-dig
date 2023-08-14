@@ -116,8 +116,8 @@ func main() {
 	rr2RegionMap := make(map[string]map[string]map[string]string)
 	for _, ipRegion := range ipRegions {
 		for _, ip := range ipRegion.IPs {
-			// 每100个请求切换一下nameserver
-			if idx%100 == 0 {
+			// 每50个请求切换一下nameserver
+			if idx%50 == 0 {
 				// 释放上一个conn
 				if conn != nil {
 					conn.Close()
@@ -161,7 +161,8 @@ func main() {
 			// 汇总结果
 			sort.Strings(aRRs)
 			aStr := strings.Join(aRRs, ",")
-			var province string
+
+			province := ipRegion.Province
 			if ipRegion.Province == "0" {
 				province = ipRegion.Country
 			}
@@ -374,6 +375,10 @@ func prettyStatistic(aRRs map[string]map[string]map[string]string) {
 			// 同一个A记录下，同一个ISP下，把所有Country+Province聚合
 			var provinceList []string
 			for province, pInfo := range iInfo {
+				if province == pInfo && pInfo != "中国" {
+					province = ""
+				}
+
 				provinceList = append(provinceList, pInfo+" "+province)
 			}
 
