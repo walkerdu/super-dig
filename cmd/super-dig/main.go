@@ -360,7 +360,9 @@ func chineseCharCount(str string) int {
 
 func prettyStatistic(aRRs map[string]map[string]map[string]string) {
 	newLineStr := strings.Repeat("-", 30)
-	fmt.Printf("%s---%s---%s|\n", newLineStr, newLineStr, newLineStr)
+	fmt.Printf("|%s---%s---%s|\n", newLineStr, newLineStr, newLineStr)
+	fmt.Printf("|%-30s | %-30s | %-30s|\n", "Local Subnet", "ISP", "Records A")
+	fmt.Printf("|%s---%s---%s|\n", newLineStr, newLineStr, newLineStr)
 
 	for ips, regions := range aRRs {
 		ipList := strings.Split(ips, ",")
@@ -420,14 +422,14 @@ func prettyStatistic(aRRs map[string]map[string]map[string]string) {
 
 				provinceLen := 30 - chineseCharCount(province)
 				ispLen := 30 - chineseCharCount(isp)
-				fmt.Printf("%-*s | %-*s | %-30s|\n", provinceLen, province, ispLen, isp, ip)
+				fmt.Printf("|%-*s | %-*s | %-30s|\n", provinceLen, province, ispLen, isp, ip)
 			}
 
 			if ispLen < len(regions) {
-				fmt.Printf("%s---%s-| %-30s|\n", newLineStr, newLineStr, "")
+				fmt.Printf("|%s---%s-| %-30s|\n", newLineStr, newLineStr, "")
 			}
 		}
 
-		fmt.Printf("%s---%s---%s|\n", newLineStr, newLineStr, newLineStr)
+		fmt.Printf("|%s---%s---%s|\n", newLineStr, newLineStr, newLineStr)
 	}
 }
