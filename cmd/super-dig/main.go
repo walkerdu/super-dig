@@ -160,10 +160,9 @@ func main() {
 			// 控制频率
 			time.Sleep(5 * time.Millisecond)
 		}
-
-		prettyStatistic(rr2RegionMap)
 	}
 
+	prettyStatistic(rr2RegionMap)
 }
 
 func parseNameServerFile(nsFile string) []configs.DNS {
@@ -343,48 +342,68 @@ func chineseCharCount(str string) int {
 func prettyStatistic(aRRs map[string]map[string]map[string]string) {
 	for ips, regions := range aRRs {
 		ipList := strings.Split(ips, ",")
-		var ispList []string
-		var provinceList []string
 
 		ipLines := 0
+		ispLen := 0
 
+		// 按ISP聚合输出
 		for isp, iInfo := range regions {
-			ispList = append(ispList, isp)
+			ispLen += 1
+
+			// 同一个A记录下，同一个ISP下，把所有Country+Province聚合
+			var provinceList []string
 			for province, pInfo := range iInfo {
 				provinceList = append(provinceList, pInfo+" "+province)
 			}
 
-			{
-				thisIpMaxLines := 0
-				if len(ipList) > len(provinceList) {
-					thisIpMaxLines = len(ipList)
+			// 计算该ISP下，Country+Province，IP，ISP最大的行数
+			thisIpMaxLines := 0
+
+			ipRemainLen := 0
+			if ipLines == 0 {
+				// ip全部输出后，不再考虑ip占用的行数
+				ipRemainLen = len(ipList)
+			}
+
+			if ipRemainLen > len(provinceList) {
+				thisIpMaxLines = ipRemainLen
+			} else {
+				thisIpMaxLines = len(provinceList)
+			}
+
+			// 开始输出该ISP，应该输出的所有行
+			var ip string
+			var province string
+			for loop_i := 0; loop_i < thisIpMaxLines; loop_i++ {
+				if ipLines < ipRemainLen {
+					ip = ipList[loop_i]
+					ipLines += 1
 				} else {
-					thisIpMaxLines = len(provinceList)
+					ip = ""
 				}
 
-				var ip string
-				var province string
-				for loop_i := 0; loop_i < thisIpMaxLines; loop_i++ {
-					if ipLines < len(ipList) {
-						ip = ipList[loop_i]
-						ipLines += 1
-					} else {
-						ip = ""
-					}
-					if loop_i < len(provinceList) {
-						province = provinceList[loop_i]
-					} else {
-						province = ""
-					}
-
-					provinceLen := 30 - chineseCharCount(province)
-					ispLen := 30 - chineseCharCount(isp)
-					fmt.Printf("%-*s | %-*s | %-30s\n", provinceLen, province, ispLen, isp, ip)
+				if loop_i < len(provinceList) {
+					province = provinceList[loop_i]
+				} else {
+					province = ""
 				}
+
+				if loop_i > 0 {
+					isp = ""
+				}
+
+				provinceLen := 30 - chineseCharCount(province)
+				ispLen := 30 - chineseCharCount(isp)
+				fmt.Printf("%-*s | %-*s | %-30s|\n", provinceLen, province, ispLen, isp, ip)
+			}
+
+			if ispLen < len(regions) {
+				newLineStr := strings.Repeat("-", 30)
+				fmt.Printf("%s---%s-| %-30s|\n", newLineStr, newLineStr, "")
 			}
 		}
 
 		newLineStr := strings.Repeat("-", 30)
-		fmt.Printf("%s---%s---%s\n", newLineStr, newLineStr, newLineStr)
+		fmt.Printf("%s---%s---%s|\n", newLineStr, newLineStr, newLineStr)
 	}
 }
