@@ -145,23 +145,24 @@ func main() {
 			aStr := strings.Join(aRRs, ",")
 			if regionInfo, ok := rr2RegionMap[aStr]; !ok {
 				rr2RegionMap[aStr] = make(map[string]map[string]string)
-				rr2RegionMap[aStr][ipRegion.Country] = make(map[string]string)
-				rr2RegionMap[aStr][ipRegion.Country][ipRegion.Province] = ipRegion.ISP
+				rr2RegionMap[aStr][ipRegion.ISP] = make(map[string]string)
+				rr2RegionMap[aStr][ipRegion.ISP][ipRegion.Province] = ipRegion.Country
 			} else {
-				if _, ok := regionInfo[ipRegion.Country]; !ok {
-					regionInfo[ipRegion.Country] = make(map[string]string)
-					regionInfo[ipRegion.Country][ipRegion.Province] = ipRegion.ISP
+				if _, ok := regionInfo[ipRegion.ISP]; !ok {
+					regionInfo[ipRegion.ISP] = make(map[string]string)
+					regionInfo[ipRegion.ISP][ipRegion.Province] = ipRegion.Country
 				} else {
-					regionInfo[ipRegion.Country][ipRegion.Province] = ipRegion.ISP
+					regionInfo[ipRegion.ISP][ipRegion.Province] = ipRegion.Country
 				}
 			}
 
 			// 控制频率
 			time.Sleep(5 * time.Millisecond)
 		}
+
+		prettyStatistic(rr2RegionMap)
 	}
 
-	fmt.Printf("%v\n", rr2RegionMap)
 }
 
 func parseNameServerFile(nsFile string) []configs.DNS {
@@ -326,4 +327,44 @@ func parseAnswerSection(response []byte, offset int) (uint16, []byte, int) {
 	fmt.Println("Data:", dnsMsg.ParseIPFromRData(rData))
 
 	return rType, rData, offset + int(rDLen)
+}
+
+func prettyStatistic(aRRs map[string]map[string]map[string]string) {
+	for ips, regions := range aRRs {
+		ipList := strings.Split(ips, ",")
+		var ispList []string
+		var provinceList []string
+
+		ipLines := 0
+
+		for isp, iInfo := range regions {
+			ispList = append(ispList, isp)
+			for province, pInfo := range iInfo {
+				provinceList = append(provinceList, pInfo+" "+province)
+			}
+
+			{
+				thisIpMaxLines := 0
+				if len(ipList) > len(provinceList) {
+					thisIpMaxLines = len(ipList)
+				} else {
+					thisIpMaxLines = len(provinceList)
+				}
+
+				var ip string
+				var province string
+				for loop_i := 0; loop_i < thisIpMaxLines; loop_i++ {
+					if ipLines < len(ipList) {
+						ip = ipList[loop_i]
+						ipLines += 1
+					}
+					if loop_i < len(provinceList) {
+						province = provinceList[loop_i]
+					}
+
+					fmt.Printf("%-20s | %-20s | %-20s\n", province, isp, ip)
+				}
+			}
+		}
+	}
 }
