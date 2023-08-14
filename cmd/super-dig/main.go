@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/walkerdu/super-dig/configs"
 	dnsMsg "github.com/walkerdu/super-dig/pkg/dns_msg"
@@ -329,6 +330,16 @@ func parseAnswerSection(response []byte, offset int) (uint16, []byte, int) {
 	return rType, rData, offset + int(rDLen)
 }
 
+func chineseCharCount(str string) int {
+	count := 0
+	for _, runeValue := range str {
+		if utf8.RuneLen(runeValue) > 1 {
+			count++
+		}
+	}
+	return count
+}
+
 func prettyStatistic(aRRs map[string]map[string]map[string]string) {
 	for ips, regions := range aRRs {
 		ipList := strings.Split(ips, ",")
@@ -357,14 +368,23 @@ func prettyStatistic(aRRs map[string]map[string]map[string]string) {
 					if ipLines < len(ipList) {
 						ip = ipList[loop_i]
 						ipLines += 1
+					} else {
+						ip = ""
 					}
 					if loop_i < len(provinceList) {
 						province = provinceList[loop_i]
+					} else {
+						province = ""
 					}
 
-					fmt.Printf("%-20s | %-20s | %-20s\n", province, isp, ip)
+					provinceLen := 30 - chineseCharCount(province)
+					ispLen := 30 - chineseCharCount(isp)
+					fmt.Printf("%-*s | %-*s | %-30s\n", provinceLen, province, ispLen, isp, ip)
 				}
 			}
 		}
+
+		newLineStr := strings.Repeat("-", 30)
+		fmt.Printf("%s---%s---%s\n", newLineStr, newLineStr, newLineStr)
 	}
 }
