@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"math/rand"
 	"net"
 	"os"
@@ -16,6 +15,8 @@ import (
 
 	"github.com/walkerdu/super-dig/configs"
 	dnsMsg "github.com/walkerdu/super-dig/pkg/dns_msg"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 var (
@@ -25,6 +26,7 @@ Options:
 	-f, --subnet_file <ip region file, for DNS client subnet>
 	-ns <name server>
 	--ns_file <name server file>
+	--log_level <zap log level>
 `
 	Usage = func() {
 		fmt.Printf(usage, os.Args[0])
@@ -36,7 +38,9 @@ var (
 	nameServer     = flag.String("ns", "8.8.8.8", "name server")
 	ipRegionFile   = flag.String("f", "", "ip region file")
 	nameServerFile = flag.String("ns_file", "", "name server")
+	logLevel       = flag.Int("log_level", 0, "zap log level, default info")
 	domainName     = ""
+	logger         *zap.Logger
 )
 
 func main() {
@@ -53,15 +57,31 @@ func main() {
 		if len(domainName) == 0 {
 			domainName = flag.Args()[0]
 		} else {
-			log.Printf("[WARN] ignore unkown params: %s", flag.Args()[0])
+			panic(fmt.Sprintf("ignore unkown params: %s", flag.Args()[0]))
 		}
 
 		os.Args = flag.Args()[0:]
 		flag.Parse()
 	}
 
+	// 初始化日志
+	config := zap.Config{
+		Level:            zap.NewAtomicLevelAt(zapcore.Level(*logLevel)),
+		Encoding:         "console",                         // 使用默认的 console 编码器
+		EncoderConfig:    zap.NewDevelopmentEncoderConfig(), // 使用开发环境的默认编码器配置
+		OutputPaths:      []string{"stdout"},                // 输出到标准输出
+		ErrorOutputPaths: []string{"stderr"},                // 错误输出到标准错误输出
+	}
+
+	loggerIns, err := config.Build()
+	if err != nil {
+		panic("无法创建日志记录器")
+	}
+	defer loggerIns.Sync()
+	logger = loggerIns
+
 	if len(domainName) == 0 {
-		log.Printf("[WARN] please input domain names")
+		logger.Error("[WARN] please input domain names")
 		flag.Usage()
 		return
 	}
@@ -110,11 +130,10 @@ func main() {
 				var err error
 				conn, err = net.Dial("udp", ns.Nameserver+":53")
 				if err != nil {
-					log.Println("Error creating UDP connection:", err)
-					return
+					logger.Fatal("Error creating UDP connection", zap.Error(err))
 				}
 
-				log.Printf("switch to DNS %s:53\n", ns.Nameserver)
+				logger.Debug("switch to DNS", zap.String("nameserver", ns.Nameserver), zap.Int("port", 53))
 				conn.SetDeadline(time.Now().Add(time.Second * 10))
 			}
 
@@ -126,16 +145,14 @@ func main() {
 			// Send DNS query
 			_, err := conn.Write(query)
 			if err != nil {
-				log.Println("Error sending DNS query:", err)
-				return
+				logger.Fatal("Error sending DNS query", zap.Error(err))
 			}
 
 			// Receive DNS response
 			response := make([]byte, 1024*100)
 			resBytes, err := conn.Read(response)
 			if err != nil {
-				log.Println("Error receiving DNS response:", err)
-				return
+				logger.Fatal("Error receiving DNS response", zap.Error(err))
 			}
 
 			// Process and print DNS response
@@ -168,8 +185,7 @@ func main() {
 func parseNameServerFile(nsFile string) []configs.DNS {
 	jsonFile, err := os.Open(nsFile)
 	if err != nil {
-		fmt.Println(err)
-		return nil
+		logger.Fatal("parseNameServerFile failed", zap.Error(err))
 	}
 	defer jsonFile.Close()
 
@@ -178,8 +194,7 @@ func parseNameServerFile(nsFile string) []configs.DNS {
 	var nsList []configs.DNS
 	err = json.Unmarshal(byteValue, &nsList)
 	if err != nil {
-		fmt.Println(err)
-		return nil
+		logger.Fatal("parseNameServerFile failed", zap.Error(err))
 	}
 
 	return nsList
@@ -188,8 +203,7 @@ func parseNameServerFile(nsFile string) []configs.DNS {
 func parseIPRegionFile(ipRegionFile string) []configs.IPRegion {
 	jsonFile, err := os.Open(ipRegionFile)
 	if err != nil {
-		fmt.Println(err)
-		return nil
+		logger.Fatal("parseIPRegionFile failed", zap.Error(err))
 	}
 	defer jsonFile.Close()
 
@@ -198,8 +212,7 @@ func parseIPRegionFile(ipRegionFile string) []configs.IPRegion {
 	var ipRegions []configs.IPRegion
 	err = json.Unmarshal(byteValue, &ipRegions)
 	if err != nil {
-		fmt.Println(err)
-		return nil
+		logger.Fatal("parseIPRegionFile failed", zap.Error(err))
 	}
 
 	return ipRegions
@@ -232,18 +245,18 @@ func makeDNSQuery(domain string, clientSubnet string) []byte {
 		queryData = append(queryData, dnsAdditional.Data[0:offset]...)
 	}
 
-	fmt.Printf("Request:%02x\n", queryData)
-	fmt.Println("Request Header\n", &dnsHeader)
+	logger.Debug(fmt.Sprintf("Request:%02x", queryData))
+	logger.Debug(fmt.Sprintf("Request Header", &dnsHeader))
 
 	return queryData
 }
 
 func parseDNSResponse(response []byte) []string {
-	fmt.Printf("Reponse:%02x\n", response)
+	logger.Debug(fmt.Sprintf("Reponse:%02x\n", response))
 
 	// DNS response header
 	dnsHeader := dnsMsg.DNSHeader(response)
-	fmt.Println("Reponse header:", &dnsHeader)
+	logger.Debug(fmt.Sprintf("Reponse header:%s", &dnsHeader))
 
 	qdCount := dnsHeader.GetQDCount()
 	anCount := dnsHeader.GetANCount()
@@ -256,10 +269,10 @@ func parseDNSResponse(response []byte) []string {
 	offset := len(dnsHeader) // Start after header
 	for idx := uint16(0); idx < qdCount+anCount+nsCount+arCount; idx++ {
 		if idx < qdCount {
-			fmt.Println("----------------Query Section---------------")
+			logger.Debug("----------------Query Section---------------")
 			offset = parseQuerySection(response, offset)
 		} else if idx < qdCount+anCount {
-			fmt.Println("-----------Answer Records Section-----------")
+			logger.Debug("-----------Answer Records Section-----------")
 			var rType uint16
 			var rData []byte
 			rType, rData, offset = parseAnswerSection(response, offset)
@@ -267,9 +280,9 @@ func parseDNSResponse(response []byte) []string {
 				aRRs = append(aRRs, dnsMsg.ParseIPFromRData(rData).String())
 			}
 		} else if idx < qdCount+anCount+nsCount {
-			fmt.Println("----------Authority Records Section---------")
+			logger.Debug("----------Authority Records Section---------")
 		} else if idx < qdCount+anCount+nsCount+arCount {
-			fmt.Println("----------Additional Records Section--------")
+			logger.Debug("----------Additional Records Section--------")
 		}
 	}
 
@@ -290,9 +303,9 @@ func parseQuerySection(response []byte, offset int) int {
 	rClass, length := dnsQuestion.GetQClass(offset)
 	offset += length
 
-	fmt.Println("Name:", name)
-	fmt.Println("Type:", rType)
-	fmt.Println("Class:", rClass)
+	logger.Debug(fmt.Sprintf("Name:%s", name))
+	logger.Debug(fmt.Sprintf("Type:%s", rType))
+	logger.Debug(fmt.Sprintf("Class:%s", rClass))
 
 	return offset
 }
@@ -319,12 +332,12 @@ func parseAnswerSection(response []byte, offset int) (uint16, []byte, int) {
 
 	rData := dnsAnswer.GetData(offset, rDLen)
 
-	fmt.Println("Name:", name)
-	fmt.Println("Type:", rType)
-	fmt.Println("Class:", rClass)
-	fmt.Println("TTL:", rTTL)
-	fmt.Println("Data Length:", rDLen)
-	fmt.Println("Data:", dnsMsg.ParseIPFromRData(rData))
+	logger.Debug(fmt.Sprintf("Name:%s", name))
+	logger.Debug(fmt.Sprintf("Type:%s", rType))
+	logger.Debug(fmt.Sprintf("Class:%s", rClass))
+	logger.Debug(fmt.Sprintf("TTL:%s", rTTL))
+	logger.Debug(fmt.Sprintf("Data Length:%s", rDLen))
+	logger.Debug(fmt.Sprintf("Data:%s", dnsMsg.ParseIPFromRData(rData)))
 
 	return rType, rData, offset + int(rDLen)
 }
@@ -340,6 +353,9 @@ func chineseCharCount(str string) int {
 }
 
 func prettyStatistic(aRRs map[string]map[string]map[string]string) {
+	newLineStr := strings.Repeat("-", 30)
+	fmt.Printf("%s---%s---%s|\n", newLineStr, newLineStr, newLineStr)
+
 	for ips, regions := range aRRs {
 		ipList := strings.Split(ips, ",")
 
@@ -398,12 +414,10 @@ func prettyStatistic(aRRs map[string]map[string]map[string]string) {
 			}
 
 			if ispLen < len(regions) {
-				newLineStr := strings.Repeat("-", 30)
 				fmt.Printf("%s---%s-| %-30s|\n", newLineStr, newLineStr, "")
 			}
 		}
 
-		newLineStr := strings.Repeat("-", 30)
 		fmt.Printf("%s---%s---%s|\n", newLineStr, newLineStr, newLineStr)
 	}
 }
