@@ -161,16 +161,21 @@ func main() {
 			// 汇总结果
 			sort.Strings(aRRs)
 			aStr := strings.Join(aRRs, ",")
+			var province string
+			if ipRegion.Province == "0" {
+				province = ipRegion.Country
+			}
+
 			if regionInfo, ok := rr2RegionMap[aStr]; !ok {
 				rr2RegionMap[aStr] = make(map[string]map[string]string)
 				rr2RegionMap[aStr][ipRegion.ISP] = make(map[string]string)
-				rr2RegionMap[aStr][ipRegion.ISP][ipRegion.Province] = ipRegion.Country
+				rr2RegionMap[aStr][ipRegion.ISP][province] = ipRegion.Country
 			} else {
 				if _, ok := regionInfo[ipRegion.ISP]; !ok {
 					regionInfo[ipRegion.ISP] = make(map[string]string)
-					regionInfo[ipRegion.ISP][ipRegion.Province] = ipRegion.Country
+					regionInfo[ipRegion.ISP][province] = ipRegion.Country
 				} else {
-					regionInfo[ipRegion.ISP][ipRegion.Province] = ipRegion.Country
+					regionInfo[ipRegion.ISP][province] = ipRegion.Country
 				}
 			}
 
