@@ -247,7 +247,7 @@ func makeDNSQuery(domain string, clientSubnet string) []byte {
 		dnsHeader.SetARCount(1) // Number of additional records
 
 		queryData = append(dnsHeader.GetHeader(), dnsQuestion.Data...)
-		offset := dnsAdditional.AddEDNSClientSubnet(0, net.ParseIP(clientSubnet), 24)
+		offset := dnsAdditional.AddEDNSClientSubnet(0, net.ParseIP(clientSubnet), 24) //nolint
 		queryData = append(queryData, dnsAdditional.Data[0:offset]...)
 	}
 
@@ -261,7 +261,8 @@ func parseDNSResponse(response []byte) []string {
 	logger.Debug(fmt.Sprintf("Reponse:%02x\n", response))
 
 	// DNS response header
-	dnsHeader := dnsMsg.DNSHeader(response)
+	var dnsHeader dnsMsg.DNSHeader
+	copy(dnsHeader[:], response[0:len(dnsHeader)])
 	logger.Debug(fmt.Sprintf("Reponse header:%s", &dnsHeader))
 
 	qdCount := dnsHeader.GetQDCount()
